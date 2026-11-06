@@ -1,0 +1,511 @@
+<title>Parete Salvia 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Italiana&family=Manrope:wght@400;500;700&display=swap">
+<style>
+  /* Layout: scena 3D a tutto schermo, pannello di controllo flottante in basso a sinistra (foglio inferiore su telefono) */
+  :root {
+    --notte: #12130f;          /* sfondo della sala */
+    --pannello: rgba(22, 24, 19, .82);
+    --testo: #ece6da;
+    --testo-tenue: #a7a493;
+    --salvia: #8fa37f;
+    --led: #ffc58a;
+    --bordo: rgba(236, 230, 218, .12);
+    --display: "Italiana", "Didot", "Bodoni 72", Georgia, serif;
+    --corpo: "Manrope", "Helvetica Neue", Arial, sans-serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--notte);
+    color: var(--testo);
+    font-family: var(--corpo);
+    overflow: hidden;
+  }
+  #scena { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+
+  .pannello {
+    position: fixed;
+    left: max(16px, env(safe-area-inset-left, 0px));
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    width: 300px;
+    max-width: calc(100% - 32px);
+    display: grid;
+    gap: 14px;
+    padding: 18px 18px 16px;
+    background: var(--pannello);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--bordo);
+    border-radius: 14px;
+  }
+  .testa { display: grid; gap: 2px; }
+  h1 {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 28px;
+    line-height: 1.05;
+    letter-spacing: .02em;
+    text-wrap: balance;
+  }
+  .misure { font-size: 12px; color: var(--testo-tenue); font-variant-numeric: tabular-nums; }
+  .gruppo { display: grid; gap: 7px; }
+  .etichetta {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: var(--testo-tenue);
+  }
+  .riga { display: flex; flex-wrap: wrap; gap: 6px; }
+  button {
+    font: 500 12.5px var(--corpo);
+    color: var(--testo);
+    background: transparent;
+    border: 1px solid var(--bordo);
+    border-radius: 999px;
+    padding: 6px 11px;
+    cursor: pointer;
+  }
+  button:hover { border-color: rgba(236,230,218,.35); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--led); outline-offset: 2px; }
+  button[aria-pressed="true"] { background: var(--testo); color: var(--notte); border-color: var(--testo); }
+  .campione { display: inline-flex; align-items: center; gap: 7px; }
+  .campione i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+  input[type=range] { width: 100%; accent-color: var(--led); }
+  .nota { font-size: 11.5px; color: var(--testo-tenue); line-height: 1.45; }
+  .chiudi { display: none; }
+
+  @media (max-width: 560px) {
+    .pannello {
+      left: 0; right: 0; bottom: 0;
+      width: auto; max-width: none;
+      border-radius: 14px 14px 0 0;
+      padding: 14px max(16px, env(safe-area-inset-right, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+      gap: 10px;
+    }
+    h1 { font-size: 22px; }
+    .pannello.ridotto .gruppo, .pannello.ridotto .nota { display: none; }
+    .chiudi { display: inline-block; position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); top: 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<canvas id="scena" aria-label="Modello 3D della parete verde salvia con nicchie nere illuminate"></canvas>
+
+<section class="pannello" id="pannello">
+  <div class="testa">
+    <h1>Parete salvia</h1>
+    <div class="misure">2,03 × 3,55 m · nicchie profonde 20 cm · LED 2700 K</div>
+  </div>
+  <button class="chiudi" id="chiudi" type="button" aria-expanded="true">Comandi</button>
+
+  <div class="gruppo">
+    <span class="etichetta">Tonalità salvia</span>
+    <div class="riga" id="toni">
+      <button type="button" class="campione" data-c="#a9b99a" aria-pressed="false"><i style="background:#a9b99a"></i>Chiaro</button>
+      <button type="button" class="campione" data-c="#93a685" aria-pressed="false"><i style="background:#93a685"></i>Classico</button>
+      <button type="button" class="campione" data-c="#7d9170" aria-pressed="true"><i style="background:#7d9170"></i>Profondo</button>
+    </div>
+  </div>
+
+  <div class="gruppo">
+    <span class="etichetta">Atmosfera</span>
+    <div class="riga" id="atmosfera">
+      <button type="button" data-a="giorno" aria-pressed="false">Giorno</button>
+      <button type="button" data-a="sera" aria-pressed="true">Sera</button>
+      <button type="button" id="led" aria-pressed="true">LED accesi</button>
+    </div>
+  </div>
+
+  <div class="gruppo">
+    <label class="etichetta" for="intensita">Intensità LED</label>
+    <input id="intensita" type="range" min="0" max="2" step="0.05" value="1">
+  </div>
+
+  <div class="gruppo">
+    <span class="etichetta">Vista</span>
+    <div class="riga" id="viste">
+      <button type="button" data-v="frontale" aria-pressed="false">Frontale</button>
+      <button type="button" data-v="foto" aria-pressed="true">Come la foto</button>
+      <button type="button" data-v="dettaglio" aria-pressed="false">Dettaglio</button>
+      <button type="button" data-v="laterale" aria-pressed="false">Laterale</button>
+    </div>
+  </div>
+
+  <p class="nota">Trascina per ruotare, pizzica o usa la rotella per avvicinarti.</p>
+</section>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ---------- misure ricavate dalla foto (metri) ---------- */
+const W = 2.03, H = 3.55, T = 0.30, D = 0.20;
+const NICCHIE = [
+  { id: 'A', x0: 0.19, x1: 0.64, y0: 2.23, y1: 3.36 },
+  { id: 'B', x0: 0.95, x1: 1.32, y0: 2.66, y1: 3.30 },
+  { id: 'C', x0: 1.59, x1: 1.93, y0: 2.37, y1: 3.25 },
+  { id: 'D', x0: 0.96, x1: 1.32, y0: 1.84, y1: 2.55 },
+  { id: 'E', x0: 0.37, x1: 1.83, y0: 1.34, y1: 1.69 },
+];
+const LED_COLORE = new THREE.Color('#ffc58a');
+
+/* ---------- renderer ---------- */
+const canvas = document.getElementById('scena');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+const scene = new THREE.Scene();
+const sfondoSera = new THREE.Color('#15140f');
+const sfondoGiorno = new THREE.Color('#d9d4c8');
+scene.background = sfondoSera.clone();
+scene.fog = new THREE.Fog(scene.background, 7, 16);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 50);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.minDistance = 0.8;
+controls.maxDistance = 7.5;
+controls.maxPolarAngle = Math.PI * 0.52;
+controls.minAzimuthAngle = -1.25;
+controls.maxAzimuthAngle = 1.25;
+
+RectAreaLightUniformsLib.init();
+
+/* ---------- texture intonaco ---------- */
+function texturaIntonaco() {
+  const c = document.createElement('canvas'); c.width = c.height = 512;
+  const g = c.getContext('2d');
+  const img = g.createImageData(512, 512);
+  // rumore a due scale: grana fine + chiazze ampie da spatolato
+  const grande = new Float32Array(32 * 32).map(() => Math.random());
+  const campiona = (x, y) => {
+    const gx = x / 16, gy = y / 16, ix = Math.floor(gx), iy = Math.floor(gy);
+    const fx = gx - ix, fy = gy - iy;
+    const v = (i, j) => grande[((iy + j) & 31) * 32 + ((ix + i) & 31)];
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    return (v(0,0) * (1 - sx) + v(1,0) * sx) * (1 - sy) + (v(0,1) * (1 - sx) + v(1,1) * sx) * sy;
+  };
+  for (let y = 0; y < 512; y++) for (let x = 0; x < 512; x++) {
+    const n = 0.93 + campiona(x, y) * 0.045 + Math.random() * 0.025;
+    const i = (y * 512 + x) * 4;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = Math.min(255, n * 255);
+    img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(0.9, 0.9);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/* ---------- parete con fori ---------- */
+const matParete = new THREE.MeshStandardMaterial({ color: '#7d9170', roughness: 0.92, map: texturaIntonaco(), envMapIntensity: 0.6 });
+const forma = new THREE.Shape();
+forma.moveTo(0, 0); forma.lineTo(W, 0); forma.lineTo(W, H); forma.lineTo(0, H); forma.closePath();
+for (const n of NICCHIE) {
+  const h = new THREE.Path();
+  h.moveTo(n.x0, n.y0); h.lineTo(n.x0, n.y1); h.lineTo(n.x1, n.y1); h.lineTo(n.x1, n.y0); h.closePath();
+  forma.holes.push(h);
+}
+const parete = new THREE.Mesh(new THREE.ExtrudeGeometry(forma, { depth: T, bevelEnabled: false }), matParete);
+parete.position.z = -T;
+parete.castShadow = parete.receiveShadow = true;
+scene.add(parete);
+
+/* ---------- interno nero delle nicchie, LED e luci ---------- */
+const matNero = new THREE.MeshStandardMaterial({ color: '#0c0c0b', roughness: 0.55, metalness: 0.0, envMapIntensity: 0.4 });
+const matLed = new THREE.MeshBasicMaterial({ color: LED_COLORE.clone().multiplyScalar(4), toneMapped: false });
+const luciLed = [];
+
+function piano(w, h, mat) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+  m.receiveShadow = true;
+  return m;
+}
+
+for (const n of NICCHIE) {
+  const w = n.x1 - n.x0, h = n.y1 - n.y0, cx = (n.x0 + n.x1) / 2, cy = (n.y0 + n.y1) / 2;
+  const g = new THREE.Group();
+  const e = 0.001;
+  // fondo
+  const fondo = new THREE.Mesh(new THREE.BoxGeometry(w, h, T - D), matNero);
+  fondo.position.set(cx, cy, -D - (T - D) / 2); fondo.receiveShadow = true; g.add(fondo);
+  // fianchi, cielo e piano
+  const sx = piano(D, h, matNero); sx.rotation.y = Math.PI / 2; sx.position.set(n.x0 + e, cy, -D / 2); g.add(sx);
+  const dx = piano(D, h, matNero); dx.rotation.y = -Math.PI / 2; dx.position.set(n.x1 - e, cy, -D / 2); g.add(dx);
+  const su = piano(w, D, matNero); su.rotation.x = Math.PI / 2; su.position.set(cx, n.y1 - e, -D / 2); g.add(su);
+  const giu = piano(w, D, matNero); giu.rotation.x = -Math.PI / 2; giu.position.set(cx, n.y0 + e, -D / 2); g.add(giu);
+
+  // striscia LED incassata vicino al bordo frontale del cielo
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(w - 0.03, 0.006, 0.012), matLed);
+  strip.position.set(cx, n.y1 - 0.004, -0.035);
+  g.add(strip);
+
+  // luce morbida diffusa (area) + spot con ombre
+  const area = new THREE.RectAreaLight(LED_COLORE, 6, w - 0.03, 0.03);
+  area.position.set(cx, n.y1 - 0.01, -0.04);
+  area.lookAt(cx, n.y0, -0.06);
+  g.add(area);
+
+  const spot = new THREE.SpotLight(LED_COLORE, 0, Math.max(h, 0.6) * 2.2, Math.PI / 2.4, 1, 1.2);
+  spot.position.set(cx, n.y1 - 0.02, -0.05);
+  spot.target.position.set(cx, n.y0, -D * 0.55);
+  spot.castShadow = true;
+  spot.shadow.mapSize.set(512, 512);
+  spot.shadow.bias = -0.0008;
+  spot.shadow.radius = 4;
+  g.add(spot, spot.target);
+
+  luciLed.push({ area, spot, strip, base: { area: 7, spot: 0.9 * (h + 0.4) } });
+  scene.add(g);
+}
+
+/* ---------- bottiglie ---------- */
+function profilo({ h, r, collo = 0.25, rc = 0.3, spalla = 0.6, tappo = 0.06 }) {
+  const p = [new THREE.Vector2(0, 0), new THREE.Vector2(r * 0.96, 0), new THREE.Vector2(r, 0.02 * h)];
+  p.push(new THREE.Vector2(r, spalla * h));
+  const hc = h * (1 - collo);
+  for (let i = 1; i <= 8; i++) {
+    const t = i / 8, y = spalla * h + (hc - spalla * h) * t;
+    const rr = r - (r - r * rc) * (1 - Math.cos(t * Math.PI)) / 2;
+    p.push(new THREE.Vector2(rr, y));
+  }
+  p.push(new THREE.Vector2(r * rc, h * (1 - tappo)));
+  p.push(new THREE.Vector2(r * rc * 1.08, h * (1 - tappo)));
+  p.push(new THREE.Vector2(r * rc * 1.08, h));
+  p.push(new THREE.Vector2(0, h));
+  return p;
+}
+const vetro = (c, rough = 0.08) => new THREE.MeshPhysicalMaterial({ color: c, roughness: rough, transmission: 0.92, thickness: 0.02, ior: 1.5, envMapIntensity: 1.2 });
+const ceramica = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.35, envMapIntensity: 1 });
+const MAT = {
+  satinato: vetro('#eef1f2', 0.45),
+  chiaro: vetro('#ffffff', 0.04),
+  rosa: vetro('#f3d6d0', 0.06),
+  bianco: ceramica('#d6cfc3'),
+  nero: ceramica('#16120f'),
+  petrolio: ceramica('#2f6b70'),
+  blu: ceramica('#29559e'),
+  argento: new THREE.MeshStandardMaterial({ color: '#c9c9c9', metalness: 0.9, roughness: 0.25 }),
+  oro: new THREE.MeshStandardMaterial({ color: '#c9a35a', metalness: 0.9, roughness: 0.3 }),
+  carta: new THREE.MeshStandardMaterial({ color: '#d8d3c9', roughness: 0.85 }),
+  sughero: new THREE.MeshStandardMaterial({ color: '#c8a77a', roughness: 0.9 }),
+};
+
+function bottiglia(opt, mat, x, y, z, etichetta) {
+  const g = new THREE.Group();
+  const corpo = new THREE.Mesh(new THREE.LatheGeometry(profilo(opt), 48), mat);
+  corpo.castShadow = true; corpo.receiveShadow = true;
+  g.add(corpo);
+  if (etichetta) {
+    const { colore, da = 0.15, a = 0.45 } = etichetta;
+    const band = new THREE.Mesh(
+      new THREE.CylinderGeometry(opt.r * 1.012, opt.r * 1.012, (a - da) * opt.h, 48, 1, true, -Math.PI * 0.55, Math.PI * 1.1),
+      new THREE.MeshStandardMaterial({ color: colore, roughness: 0.6, side: THREE.DoubleSide }));
+    band.position.y = ((da + a) / 2) * opt.h;
+    g.add(band);
+  }
+  if (opt.capColor) {
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(opt.r * opt.rc * 1.12, opt.r * opt.rc * 1.12, opt.h * 0.09, 32), opt.capColor);
+    cap.position.y = opt.h * 0.955; cap.castShadow = true; g.add(cap);
+  }
+  g.position.set(x, y, z);
+  scene.add(g);
+  return g;
+}
+function scatola(w, h, d, mat, x, y, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y + h / 2, z); m.castShadow = m.receiveShadow = true;
+  scene.add(m); return m;
+}
+const zc = -D * 0.5;
+// A: bottiglione satinato
+bottiglia({ h: 0.95, r: 0.085, collo: 0.3, rc: 0.33, spalla: 0.55, capColor: MAT.blu }, MAT.satinato, 0.41, 2.23, zc, { colore: '#9cc1e6', da: 0.08, a: 0.3 });
+// B: scatola bianca + bottiglia ceramica
+scatola(0.15, 0.31, 0.12, MAT.carta, 1.06, 2.66, zc);
+bottiglia({ h: 0.31, r: 0.042, collo: 0.2, rc: 0.55, spalla: 0.45, capColor: MAT.oro }, MAT.bianco, 1.23, 2.66, zc);
+// C: due bottiglie trasparenti
+bottiglia({ h: 0.45, r: 0.052, collo: 0.32, rc: 0.38, spalla: 0.58, capColor: MAT.nero }, MAT.chiaro, 1.71, 2.37, zc, { colore: '#d8d6d0', da: 0.12, a: 0.5 });
+bottiglia({ h: 0.29, r: 0.037, collo: 0.33, rc: 0.4, spalla: 0.55, capColor: MAT.nero }, MAT.chiaro, 1.84, 2.37, zc - 0.01, { colore: '#d8d6d0', da: 0.12, a: 0.5 });
+// D: champagne bianco
+bottiglia({ h: 0.52, r: 0.068, collo: 0.38, rc: 0.3, spalla: 0.5, capColor: MAT.nero }, MAT.bianco, 1.14, 1.84, zc, { colore: '#1d1a18', da: 0.52, a: 0.6 });
+// E: gin e distillati sulla mensola
+const fila = [
+  ['q', MAT.petrolio, 0.15], ['b', MAT.blu, 0.16], ['b', MAT.chiaro, 0.19], ['q', MAT.rosa, 0.12], ['b', MAT.bianco, 0.17],
+  ['b', MAT.nero, 0.17], ['b', MAT.bianco, 0.17], ['q', MAT.satinato, 0.17], ['b', MAT.bianco, 0.16], ['q', MAT.carta, 0.17],
+];
+fila.forEach(([tipo, mat, h], i) => {
+  const x = 0.47 + i * 0.137;
+  if (tipo === 'q') scatola(0.1, h, 0.08, mat, x, 1.34, zc);
+  else bottiglia({ h, r: 0.045, collo: 0.18, rc: 0.4, spalla: 0.6, capColor: MAT.sughero }, mat, x, 1.34, zc);
+});
+
+/* ---------- ambiente: pavimento, trave, sedute ---------- */
+const pav = new THREE.Mesh(new THREE.PlaneGeometry(14, 10), new THREE.MeshStandardMaterial({ color: '#3a2f27', roughness: 0.75 }));
+pav.rotation.x = -Math.PI / 2; pav.position.set(W / 2, 0, 1); pav.receiveShadow = true; scene.add(pav);
+const legno = new THREE.MeshStandardMaterial({ color: '#b27a45', roughness: 0.7 });
+const trave = new THREE.Mesh(new THREE.BoxGeometry(0.16, 4.2, 0.16), legno);
+trave.position.set(W + 0.13, 2.1, -0.12); trave.castShadow = trave.receiveShadow = true; scene.add(trave);
+const travetto = new THREE.Mesh(new THREE.BoxGeometry(6, 0.18, 0.2), legno);
+travetto.position.set(W / 2, 3.95, -0.15); scene.add(travetto);
+
+function tavolo(x, z) {
+  const g = new THREE.Group();
+  const top = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.8), new THREE.MeshStandardMaterial({ color: '#5a3f2b', roughness: 0.6 }));
+  top.position.y = 0.75; g.add(top);
+  const tov = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.004, 0.32), new THREE.MeshStandardMaterial({ color: '#6e5a4d', roughness: 0.9 }));
+  tov.position.set(0, 0.772, 0.15); g.add(tov);
+  for (const [a, b] of [[-.35,-.35],[.35,-.35],[-.35,.35],[.35,.35]]) {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.73, 0.05), top.material); l.position.set(a, 0.365, b); g.add(l);
+  }
+  g.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
+  g.position.set(x, 0, z); scene.add(g);
+}
+function sedia(x, z, rot) {
+  const m = new THREE.MeshStandardMaterial({ color: '#d98b7e', roughness: 0.5 });
+  const g = new THREE.Group();
+  const seduta = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.03, 0.42), m); seduta.position.y = 0.46; g.add(seduta);
+  const schienale = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.03), m); schienale.position.set(0, 0.7, -0.2); schienale.rotation.x = -0.12; g.add(schienale);
+  for (const [a, b] of [[-.19,-.18],[.19,-.18],[-.19,.18],[.19,.18]]) {
+    const l = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.46), m); l.position.set(a, 0.23, b); g.add(l);
+  }
+  g.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
+  g.position.set(x, 0, z); g.rotation.y = rot; scene.add(g);
+}
+tavolo(-0.35, 1.1); tavolo(2.45, 1.1);
+sedia(0.55, 0.45, 0); sedia(1.35, 0.45, 0);
+
+/* ---------- luci d'ambiente ---------- */
+const emisfero = new THREE.HemisphereLight('#fff5e6', '#3a2f27', 0.25);
+scene.add(emisfero);
+const sole = new THREE.DirectionalLight('#fff3e0', 0.0);
+sole.position.set(-3, 5, 5); sole.castShadow = true;
+sole.shadow.mapSize.set(2048, 2048);
+Object.assign(sole.shadow.camera, { left: -3, right: 3, top: 5, bottom: -1 });
+sole.target.position.set(W / 2, 1.5, 0);
+scene.add(sole, sole.target);
+// luce di sala morbida dall'alto
+const sala = new THREE.SpotLight('#ffe2c0', 6, 9, Math.PI / 4, 1, 1.5);
+sala.position.set(W / 2, 4.6, 2.6); sala.target.position.set(W / 2, 1.2, 0);
+scene.add(sala, sala.target);
+
+/* ---------- postproduzione: alone dei LED ---------- */
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.8, 0.6, 1.6);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+/* ---------- stato e comandi ---------- */
+const stato = { intensita: 1, accesi: true, atmosfera: 'sera' };
+function applicaLuci() {
+  const k = stato.accesi ? stato.intensita : 0;
+  for (const l of luciLed) {
+    l.area.intensity = l.base.area * k;
+    l.spot.intensity = l.base.spot * k;
+    l.strip.material.color.copy(LED_COLORE).multiplyScalar(stato.accesi ? 0.6 + 3.4 * Math.min(k, 1.4) : 0.15);
+  }
+  const giorno = stato.atmosfera === 'giorno';
+  emisfero.intensity = giorno ? 1.1 : 0.22;
+  sole.intensity = giorno ? 2.2 : 0;
+  sala.intensity = giorno ? 4 : 5;
+    renderer.toneMappingExposure = giorno ? 0.95 : 1.05;
+  scene.background.copy(giorno ? sfondoGiorno : sfondoSera);
+  scene.fog.color.copy(scene.background);
+  bloom.strength = giorno ? 0.35 : 0.8;
+}
+// il materiale LED è condiviso: lo duplico per strip così l'intensità resta coerente
+luciLed.forEach(l => { l.strip.material = matLed.clone(); });
+
+function premuto(gruppo, btn) {
+  gruppo.querySelectorAll('button').forEach(b => { if (b.dataset.a !== undefined || b.dataset.c !== undefined || b.dataset.v !== undefined) b.setAttribute('aria-pressed', String(b === btn)); });
+}
+document.getElementById('toni').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  matParete.color.set(b.dataset.c); premuto(e.currentTarget, b);
+});
+document.getElementById('atmosfera').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'led') {
+    stato.accesi = !stato.accesi;
+    b.setAttribute('aria-pressed', String(stato.accesi));
+    b.textContent = stato.accesi ? 'LED accesi' : 'LED spenti';
+  } else { stato.atmosfera = b.dataset.a; premuto(e.currentTarget, b); }
+  applicaLuci();
+});
+document.getElementById('intensita').addEventListener('input', e => { stato.intensita = +e.target.value; applicaLuci(); });
+
+const VISTE = {
+  frontale:  { pos: [W / 2, 2.0, 5.2],        tgt: [W / 2, 2.0, 0] },
+  foto:      { pos: [W / 2 + 0.2, 1.2, 3.7], tgt: [W / 2, 2.2, 0] },
+  dettaglio: { pos: [0.75, 2.6, 1.45],        tgt: [0.95, 2.45, -0.1] },
+  laterale:  { pos: [-1.9, 1.8, 2.9],         tgt: [W / 2, 2.0, 0] },
+};
+let anim = null;
+function vai(nome, subito = false) {
+  const v = VISTE[nome];
+  const to = { pos: new THREE.Vector3(...v.pos), tgt: new THREE.Vector3(...v.tgt) };
+  if (subito || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    camera.position.copy(to.pos); controls.target.copy(to.tgt); controls.update(); return;
+  }
+  anim = { t: 0, fromP: camera.position.clone(), fromT: controls.target.clone(), to };
+}
+document.getElementById('viste').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  premuto(e.currentTarget, b); vai(b.dataset.v);
+});
+const pannello = document.getElementById('pannello');
+document.getElementById('chiudi').addEventListener('click', e => {
+  const ridotto = pannello.classList.toggle('ridotto');
+  e.currentTarget.setAttribute('aria-expanded', String(!ridotto));
+});
+
+function ridimensiona() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  composer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.fov = w / h < 0.8 ? 55 : 40;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', ridimensiona);
+ridimensiona();
+applicaLuci();
+vai('foto', true);
+if (innerWidth <= 560) pannello.classList.add('ridotto'), document.getElementById('chiudi').setAttribute('aria-expanded', 'false');
+
+renderer.setAnimationLoop(() => {
+  if (anim) {
+    anim.t = Math.min(1, anim.t + 0.03);
+    const k = 1 - Math.pow(1 - anim.t, 3);
+    camera.position.lerpVectors(anim.fromP, anim.to.pos, k);
+    controls.target.lerpVectors(anim.fromT, anim.to.tgt, k);
+    if (anim.t >= 1) anim = null;
+  }
+  controls.update();
+  composer.render();
+});
+window.__pronto = true;
+</script>
