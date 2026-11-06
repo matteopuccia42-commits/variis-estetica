@@ -175,7 +175,7 @@ const LED_COLORE = new THREE.Color('#ffc58a');
 /* ---------- renderer ---------- */
 const canvas = document.getElementById('scena');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(Math.max(devicePixelRatio, 1.5), 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -203,29 +203,38 @@ RectAreaLightUniformsLib.init();
 
 /* ---------- texture intonaco ---------- */
 function texturaIntonaco() {
-  const c = document.createElement('canvas'); c.width = c.height = 512;
+  // intonaco liscio a spatola: rumore morbido a più ottave, senza grana per pixel
+  const N = 1024, c = document.createElement('canvas'); c.width = c.height = N;
   const g = c.getContext('2d');
-  const img = g.createImageData(512, 512);
-  // rumore a due scale: grana fine + chiazze ampie da spatolato
-  const grande = new Float32Array(32 * 32).map(() => Math.random());
-  const campiona = (x, y) => {
-    const gx = x / 16, gy = y / 16, ix = Math.floor(gx), iy = Math.floor(gy);
-    const fx = gx - ix, fy = gy - iy;
-    const v = (i, j) => grande[((iy + j) & 31) * 32 + ((ix + i) & 31)];
-    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
-    return (v(0,0) * (1 - sx) + v(1,0) * sx) * (1 - sy) + (v(0,1) * (1 - sx) + v(1,1) * sx) * sy;
-  };
-  for (let y = 0; y < 512; y++) for (let x = 0; x < 512; x++) {
-    const n = 0.93 + campiona(x, y) * 0.045 + Math.random() * 0.025;
-    const i = (y * 512 + x) * 4;
-    img.data[i] = img.data[i + 1] = img.data[i + 2] = Math.min(255, n * 255);
-    img.data[i + 3] = 255;
+  const img = g.createImageData(N, N);
+  const ottave = [[8, 0.5], [16, 0.28], [32, 0.14], [64, 0.08]].map(([k, amp]) => ({
+    k, amp, v: new Float32Array(k * k).map(() => Math.random()),
+  }));
+  const liscio = t => t * t * (3 - 2 * t);
+  const val = new Float32Array(N * N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    let somma = 0;
+    for (const o of ottave) {
+      const gx = x / N * o.k, gy = y / N * o.k, ix = Math.floor(gx), iy = Math.floor(gy);
+      const sx = liscio(gx - ix), sy = liscio(gy - iy);
+      const v = (i, j) => o.v[((iy + j) % o.k) * o.k + ((ix + i) % o.k)];
+      somma += o.amp * ((v(0,0) * (1 - sx) + v(1,0) * sx) * (1 - sy) + (v(0,1) * (1 - sx) + v(1,1) * sx) * sy);
+    }
+    val[y * N + x] = somma;
+  }
+  for (let i = 0; i < N * N; i++) {
+    const n = Math.round((0.955 + (val[i] - 0.5) * 0.07) * 255);
+    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = n;
+    img.data[i * 4 + 3] = 255;
   }
   g.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(0.9, 0.9);
+  t.repeat.set(0.6, 0.6);
   t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  t.generateMipmaps = true;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
   return t;
 }
 
@@ -283,7 +292,7 @@ for (const n of NICCHIE) {
   spot.position.set(cx, n.y1 - 0.02, -0.05);
   spot.target.position.set(cx, n.y0, -D * 0.55);
   spot.castShadow = true;
-  spot.shadow.mapSize.set(512, 512);
+  spot.shadow.mapSize.set(1024, 1024);
   spot.shadow.bias = -0.0008;
   spot.shadow.radius = 4;
   g.add(spot, spot.target);
@@ -326,7 +335,7 @@ const MAT = {
 
 function bottiglia(opt, mat, x, y, z, etichetta) {
   const g = new THREE.Group();
-  const corpo = new THREE.Mesh(new THREE.LatheGeometry(profilo(opt), 48), mat);
+  const corpo = new THREE.Mesh(new THREE.LatheGeometry(profilo(opt), 96), mat);
   corpo.castShadow = true; corpo.receiveShadow = true;
   g.add(corpo);
   if (etichetta) {
@@ -422,7 +431,9 @@ sala.position.set(W / 2, 4.6, 2.6); sala.target.position.set(W / 2, 1.2, 0);
 scene.add(sala, sala.target);
 
 /* ---------- postproduzione: alone dei LED ---------- */
-const composer = new EffectComposer(renderer);
+// render target con MSAA: senza, la post-produzione perde l'antialiasing e i bordi risultano seghettati
+const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+const composer = new EffectComposer(renderer, rt);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.8, 0.6, 1.6);
 composer.addPass(bloom);
