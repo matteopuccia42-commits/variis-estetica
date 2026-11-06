@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parete Verde Salvia</title>
+<style>
+  :root {
+    --salvia: #9caf88;
+    --salvia-chiaro: #b4c4a2;
+    --salvia-scuro: #7d9169;
+    --nero: #0d0d0c;
+    --luce: 255, 214, 160;       /* luce calda 2700K */
+    --intensita: 1;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    background: #1b1d18;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  /* ---------- PARETE ---------- */
+  .stanza {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .parete {
+    position: absolute;
+    inset: 0 0 14vh 0;
+    background:
+      radial-gradient(ellipse 80% 70% at 50% 35%, var(--salvia-chiaro) 0%, var(--salvia) 45%, var(--salvia-scuro) 100%);
+  }
+
+  /* texture tipo intonaco / stucco */
+  .parete::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600'><filter id='m'><feTurbulence type='fractalNoise' baseFrequency='0.012' numOctaves='4'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.35 0'/></filter><rect width='100%' height='100%' filter='url(%23m)'/></svg>");
+    opacity: .28;
+    mix-blend-mode: soft-light;
+    pointer-events: none;
+  }
+
+  /* vignettatura ambiente */
+  .parete::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 110% 90% at 50% 40%, transparent 55%, rgba(0,0,0,.35) 100%);
+    pointer-events: none;
+  }
+
+  /* ---------- PAVIMENTO ---------- */
+  .pavimento {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 14vh;
+    background: linear-gradient(#3a342c, #231f1a);
+  }
+  .pavimento::before { /* battiscopa */
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background: #6f8060;
+    box-shadow: 0 2px 6px rgba(0,0,0,.5);
+  }
+
+  /* ---------- COMPOSIZIONE INCAVATURE ---------- */
+  .composizione {
+    position: absolute;
+    left: 50%;
+    top: 46%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 1fr;
+    grid-template-rows: 1fr auto;
+    gap: clamp(18px, 3.2vw, 56px);
+    width: min(88vw, 1100px);
+    height: min(68vh, 680px);
+    z-index: 2;
+  }
+
+  .nicchia {
+    position: relative;
+    background: var(--nero);
+    overflow: hidden;
+    /* profondità: ombre interne sui bordi */
+    box-shadow:
+      inset 0 14px 18px -6px rgba(0,0,0,.95),
+      inset 10px 0 16px -8px rgba(0,0,0,.9),
+      inset -10px 0 16px -8px rgba(0,0,0,.9),
+      inset 0 -6px 10px -4px rgba(0,0,0,.8),
+      /* spigolo dell'intonaco */
+      0 0 0 1px rgba(255,255,255,.06),
+      0 1px 0 1px rgba(255,255,255,.08);
+  }
+
+  .alta     { grid-row: 1 / 2; }
+  .arco     { grid-row: 1 / 2; border-radius: 999px 999px 0 0; }
+  .mensola  { grid-column: 1 / -1; height: clamp(70px, 11vh, 120px); }
+
+  /* striscia LED nascosta in alto */
+  .nicchia .led {
+    position: absolute;
+    top: 0; left: 6%; right: 6%;
+    height: 3px;
+    background: rgba(var(--luce), calc(.95 * var(--intensita)));
+    border-radius: 2px;
+    filter: blur(1.2px);
+    box-shadow:
+      0 0 8px 2px rgba(var(--luce), calc(.8 * var(--intensita))),
+      0 0 28px 6px rgba(var(--luce), calc(.45 * var(--intensita)));
+    transition: opacity .8s ease;
+  }
+  .arco .led { top: 14%; left: 12%; right: 12%; }
+
+  /* cono di luce che scende sul fondo nero */
+  .nicchia .fascio {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 0%,
+        rgba(var(--luce), calc(.42 * var(--intensita))) 0%,
+        rgba(var(--luce), calc(.16 * var(--intensita))) 35%,
+        rgba(var(--luce), calc(.04 * var(--intensita))) 65%,
+        transparent 85%);
+    mix-blend-mode: screen;
+    transition: opacity .8s ease;
+  }
+  .arco .fascio {
+    background:
+      radial-gradient(ellipse 65% 50% at 50% 14%,
+        rgba(var(--luce), calc(.42 * var(--intensita))) 0%,
+        rgba(var(--luce), calc(.15 * var(--intensita))) 38%,
+        rgba(var(--luce), calc(.04 * var(--intensita))) 68%,
+        transparent 88%);
+  }
+  .mensola .fascio {
+    background:
+      radial-gradient(ellipse 60% 120% at 50% 0%,
+        rgba(var(--luce), calc(.32 * var(--intensita))) 0%,
+        rgba(var(--luce), calc(.10 * var(--intensita))) 45%,
+        transparent 80%);
+  }
+
+  /* piano di appoggio illuminato */
+  .nicchia .base {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 9%;
+    background: linear-gradient(to bottom,
+      rgba(var(--luce), calc(.10 * var(--intensita))),
+      rgba(var(--luce), calc(.03 * var(--intensita))));
+    border-top: 1px solid rgba(var(--luce), calc(.12 * var(--intensita)));
+  }
+  .mensola .base { height: 18%; }
+
+  /* alone morbido che fuoriesce dall'incavo sulla parete */
+  .alone {
+    position: absolute;
+    inset: -2px;
+    pointer-events: none;
+    box-shadow: 0 0 40px 6px rgba(var(--luce), calc(.10 * var(--intensita)));
+    border-radius: inherit;
+    z-index: -1;
+    transition: opacity .8s ease;
+  }
+  .wrap { position: relative; border-radius: inherit; }
+  .wrap.arco   { border-radius: 999px 999px 0 0; }
+
+  /* ---------- OGGETTI DECORATIVI ---------- */
+  .oggetto {
+    position: absolute;
+    bottom: 9%;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .vaso {
+    width: 34%;
+    aspect-ratio: 1 / 1.6;
+    background: radial-gradient(ellipse 60% 50% at 38% 25%, #4b4740, #1a1916 70%);
+    border-radius: 45% 45% 38% 38% / 55% 55% 40% 40%;
+    box-shadow: 0 6px 14px rgba(0,0,0,.6);
+  }
+  .vaso::before { /* collo */
+    content: "";
+    position: absolute;
+    top: -12%;
+    left: 34%;
+    width: 32%;
+    height: 16%;
+    background: linear-gradient(90deg, #2a2824, #4a463f 40%, #1c1b18);
+    border-radius: 3px 3px 0 0;
+  }
+  .sfera {
+    width: 30%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 25%, #d9cfc0, #8a8173 45%, #2a2621 85%);
+    box-shadow: 0 6px 14px rgba(0,0,0,.6);
+  }
+  .ramo {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    width: 2px;
+    height: 120%;
+    background: #3b3a2e;
+    transform-origin: bottom center;
+  }
+  .ramo.r1 { transform: rotate(-14deg); }
+  .ramo.r2 { transform: rotate(10deg); height: 150%; }
+  .ramo.r3 { transform: rotate(26deg); height: 100%; }
+  .ramo::after {
+    content: "";
+    position: absolute;
+    top: -6px; left: -6px;
+    width: 14px; height: 14px;
+    border-radius: 50% 0 50% 0;
+    background: #5f6e4c;
+  }
+  .libri {
+    display: flex;
+    gap: 3px;
+    align-items: flex-end;
+    left: 18%;
+    transform: none;
+  }
+  .libri span { display: block; width: 14px; background: #2b2722; border-top: 2px solid #4a443b; }
+  .libri span:nth-child(1) { height: 48px; }
+  .libri span:nth-child(2) { height: 56px; background: #3a3128; }
+  .libri span:nth-child(3) { height: 44px; }
+  .candela {
+    left: auto; right: 22%; transform: none;
+    width: 26px; height: 40px;
+    background: linear-gradient(90deg, #cfc6b6, #efe8dc 45%, #b8ae9d);
+    border-radius: 3px;
+  }
+  .candela::after {
+    content: "";
+    position: absolute;
+    top: -14px; left: 50%;
+    width: 7px; height: 12px;
+    transform: translateX(-50%);
+    border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%;
+    background: radial-gradient(ellipse at 50% 70%, #fff3d0, #ffb347 60%, transparent 70%);
+    box-shadow: 0 0 18px 6px rgba(255,180,90,calc(.45 * var(--intensita)));
+    animation: fiamma 2.4s ease-in-out infinite alternate;
+  }
+  @keyframes fiamma {
+    0%   { transform: translateX(-50%) scale(1, 1);   opacity: .95; }
+    50%  { transform: translateX(-52%) scale(.92, 1.08); opacity: 1; }
+    100% { transform: translateX(-48%) scale(1.04, .94); opacity: .88; }
+  }
+
+  /* ---------- STATO SPENTO ---------- */
+  .spento .led, .spento .fascio, .spento .alone { opacity: 0; }
+  .spento .base { opacity: .2; }
+
+  /* ---------- CONTROLLI ---------- */
+  .controlli {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 16px;
+    background: rgba(20, 22, 18, .72);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 999px;
+    color: #e9e4da;
+    font-size: 13px;
+  }
+  .controlli button {
+    background: rgba(var(--luce), .9);
+    color: #1a1712;
+    border: 0;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .controlli input[type=range] { accent-color: #d8b98a; width: 120px; }
+
+  .titolo {
+    position: fixed;
+    left: 16px;
+    top: 16px;
+    z-index: 10;
+    color: rgba(30, 36, 26, .75);
+    letter-spacing: .32em;
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+
+  /* ---------- MOBILE ---------- */
+  @media (max-width: 640px) {
+    .composizione {
+      grid-template-columns: 1fr 1.4fr 1fr;
+      width: calc(100vw - 32px);
+      height: 62vh;
+      gap: 14px;
+      top: 44%;
+    }
+    .libri span { width: 8px; }
+    .candela { width: 16px; height: 26px; }
+    .controlli { left: 16px; right: 16px; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+  <div class="titolo">Variis · Parete verde salvia</div>
+
+  <div class="stanza" id="stanza">
+    <div class="parete"></div>
+    <div class="pavimento"></div>
+
+    <div class="composizione">
+      <!-- incavatura alta sinistra -->
+      <div class="wrap alta">
+        <div class="alone"></div>
+        <div class="nicchia" style="height:100%">
+          <div class="fascio"></div>
+          <div class="led"></div>
+          <div class="base"></div>
+          <div class="oggetto vaso">
+            <span class="ramo r1"></span><span class="ramo r2"></span><span class="ramo r3"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- incavatura centrale ad arco -->
+      <div class="wrap arco">
+        <div class="alone"></div>
+        <div class="nicchia arco" style="height:100%">
+          <div class="fascio"></div>
+          <div class="led"></div>
+          <div class="base"></div>
+          <div class="oggetto sfera"></div>
+        </div>
+      </div>
+
+      <!-- incavatura alta destra -->
+      <div class="wrap alta">
+        <div class="alone"></div>
+        <div class="nicchia" style="height:100%">
+          <div class="fascio"></div>
+          <div class="led"></div>
+          <div class="base"></div>
+          <div class="oggetto vaso" style="width:26%"></div>
+        </div>
+      </div>
+
+      <!-- incavatura orizzontale bassa -->
+      <div class="wrap mensola">
+        <div class="alone"></div>
+        <div class="nicchia mensola" style="height:100%">
+          <div class="fascio"></div>
+          <div class="led"></div>
+          <div class="base"></div>
+          <div class="oggetto libri"><span></span><span></span><span></span></div>
+          <div class="oggetto candela"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controlli">
+    <button id="interruttore" type="button">Spegni luci</button>
+    <label>Intensità <input id="intensita" type="range" min="0.2" max="1.6" step="0.05" value="1"></label>
+  </div>
+
+<script>
+  const stanza = document.getElementById('stanza');
+  const btn = document.getElementById('interruttore');
+  const slider = document.getElementById('intensita');
+
+  btn.addEventListener('click', () => {
+    const spento = stanza.classList.toggle('spento');
+    btn.textContent = spento ? 'Accendi luci' : 'Spegni luci';
+  });
+
+  slider.addEventListener('input', e => {
+    document.documentElement.style.setProperty('--intensita', e.target.value);
+  });
+</script>
+</body>
+</html>
