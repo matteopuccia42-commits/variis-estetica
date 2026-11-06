@@ -110,6 +110,15 @@
   </div>
 
   <div class="gruppo">
+    <span class="etichetta">Fondo nicchie</span>
+    <div class="riga" id="nicchie">
+      <button type="button" data-n="salvia" aria-pressed="true">Salvia</button>
+      <button type="button" data-n="tono" aria-pressed="false">Salvia più scuro</button>
+      <button type="button" data-n="nero" aria-pressed="false">Nero</button>
+    </div>
+  </div>
+
+  <div class="gruppo">
     <span class="etichetta">Atmosfera</span>
     <div class="riga" id="atmosfera">
       <button type="button" data-a="giorno" aria-pressed="false">Giorno</button>
@@ -236,6 +245,7 @@ scene.add(parete);
 
 /* ---------- interno nero delle nicchie, LED e luci ---------- */
 const matNero = new THREE.MeshStandardMaterial({ color: '#0c0c0b', roughness: 0.55, metalness: 0.0, envMapIntensity: 0.4 });
+// materiale degli interni: cambia tra salvia, salvia più scuro e nero
 const matLed = new THREE.MeshBasicMaterial({ color: LED_COLORE.clone().multiplyScalar(4), toneMapped: false });
 const luciLed = [];
 
@@ -440,12 +450,29 @@ function applicaLuci() {
 luciLed.forEach(l => { l.strip.material = matLed.clone(); });
 
 function premuto(gruppo, btn) {
-  gruppo.querySelectorAll('button').forEach(b => { if (b.dataset.a !== undefined || b.dataset.c !== undefined || b.dataset.v !== undefined) b.setAttribute('aria-pressed', String(b === btn)); });
+  gruppo.querySelectorAll('button').forEach(b => { if (b.dataset.a !== undefined || b.dataset.c !== undefined || b.dataset.v !== undefined || b.dataset.n !== undefined) b.setAttribute('aria-pressed', String(b === btn)); });
 }
 document.getElementById('toni').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   matParete.color.set(b.dataset.c); premuto(e.currentTarget, b);
+  applicaNicchie();
 });
+let fondoNicchie = 'salvia';
+function applicaNicchie() {
+  if (fondoNicchie === 'nero') {
+    matNero.color.set('#0c0c0b'); matNero.roughness = 0.55; matNero.map = null; matNero.envMapIntensity = 0.4;
+  } else {
+    matNero.color.copy(matParete.color);
+    if (fondoNicchie === 'tono') matNero.color.multiplyScalar(0.45);
+    matNero.roughness = 0.92; matNero.map = matParete.map; matNero.envMapIntensity = 0.6;
+  }
+  matNero.needsUpdate = true;
+}
+document.getElementById('nicchie').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  fondoNicchie = b.dataset.n; premuto(e.currentTarget, b); applicaNicchie();
+});
+applicaNicchie();
 document.getElementById('atmosfera').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.id === 'led') {
